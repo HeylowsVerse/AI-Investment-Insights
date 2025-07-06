@@ -1,4 +1,5 @@
 import io
+import json
 from typing import Dict
 
 import altair as alt
@@ -43,8 +44,27 @@ if scrape_button:
         for tkr in tickers:
             with st.spinner(f"Scraping data for {tkr}..."):
                 try:
-                    scrape_main(tkr, int(days_input))
-                    st.success(f"Scraped data for {tkr}. Files saved to current directory.")
+                    result = scrape_main(tkr, int(days_input))
+                    st.success(f"Scraped data for {tkr}. Download files below.")
+                    stock_data = json.dumps(result["stock"], indent=4).encode("utf-8")
+                    st.download_button(
+                        f"Download Stock Data ({tkr})",
+                        stock_data,
+                        file_name=f"{tkr}_stock.json",
+                    )
+                    if result.get("filings"):
+                        filing_data = json.dumps(result["filings"], indent=4).encode("utf-8")
+                        st.download_button(
+                            f"Download Filing ({tkr})",
+                            filing_data,
+                            file_name=f"{tkr}_filing_latest.json",
+                        )
+                    news_data = json.dumps(result["news"], indent=4).encode("utf-8")
+                    st.download_button(
+                        f"Download News ({tkr})",
+                        news_data,
+                        file_name=f"{tkr}_news_{result['timestamp']}.json",
+                    )
                 except Exception as e:  # pragma: no cover - manual operation
                     st.error(f"Failed to scrape data for {tkr}: {e}")
 
