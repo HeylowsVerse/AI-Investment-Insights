@@ -27,11 +27,10 @@ with st.form("scrape_form"):
     company_options = {
         f"{name} ({ticker})": ticker for ticker, name in SEMICONDUCTOR_COMPANIES.items()
     }
-    tickers_input = st.multiselect(
+    ticker_choice = st.selectbox(
         "Select Company",
         list(company_options.keys()),
-        help="Up to 3 companies",
-        max_selections=3,
+        help="Select one company",
     )
 
     day_map = {"30D": 30, "60D": 60, "90D": 90, "120D": 120}
@@ -42,41 +41,37 @@ with st.form("scrape_form"):
     scrape_button = st.form_submit_button("Start")
 
 if scrape_button:
-    tickers = [company_options[sel] for sel in tickers_input]
-    if len(tickers) > 3:
-        st.error("Please select no more than 3 companies.")
-    else:
-        from scrape_data import main as scrape_main
+    ticker = company_options[ticker_choice]
+    from scrape_data import main as scrape_main
 
-        days_input = day_map[days_label]
-        for tkr in tickers:
-            with st.spinner(f"Scraping data for {tkr}..."):
-                try:
-                    result = scrape_main(tkr, int(days_input))
-                    st.success(f"Scraped data for {tkr}. Download file below.")
-                    stock_data = json.dumps(result["stock"], indent=4).encode("utf-8")
-                    news_data = json.dumps(result["news"], indent=4).encode("utf-8")
-                    zip_buffer = io.BytesIO()
-                    with zipfile.ZipFile(zip_buffer, "w") as zf:
-                        zf.writestr(f"{tkr}_stock.json", stock_data)
-                        if result.get("filings"):
-                            filing_data = json.dumps(
-                                result["filings"], indent=4
-                            ).encode("utf-8")
-                            zf.writestr(f"{tkr}_filing_latest.json", filing_data)
-                        zf.writestr(f"{tkr}_news_{result['timestamp']}.json", news_data)
-                    zip_buffer.seek(0)
-                    st.download_button(
-                        f"Download {tkr} Data (zip)",
-                        zip_buffer,
-                        file_name=f"{tkr}_data_{result['timestamp']}.zip",
-                        mime="application/zip",
-                    )
-                except Exception as e:  # pragma: no cover - manual operation
-                    st.error(f"Failed to scrape data for {tkr}: {e}")
+    days_input = day_map[days_label]
+    with st.spinner(f"Scraping data for {ticker}..."):
+        try:
+            result = scrape_main(ticker, int(days_input))
+            st.success(f"Scraped data for {ticker}. Download file below.")
+            stock_data = json.dumps(result["stock"], indent=4).encode("utf-8")
+            news_data = json.dumps(result["news"], indent=4).encode("utf-8")
+            zip_buffer = io.BytesIO()
+            with zipfile.ZipFile(zip_buffer, "w") as zf:
+                zf.writestr(f"{ticker}_stock.json", stock_data)
+                if result.get("filings"):
+                    filing_data = json.dumps(
+                        result["filings"], indent=4
+                    ).encode("utf-8")
+                    zf.writestr(f"{ticker}_filing_latest.json", filing_data)
+                zf.writestr(f"{ticker}_news_{result['timestamp']}.json", news_data)
+            zip_buffer.seek(0)
+            st.download_button(
+                f"Download {ticker} Data (zip)",
+                zip_buffer,
+                file_name=f"{ticker}_data_{result['timestamp']}.zip",
+                mime="application/zip",
+            )
+        except Exception as e:  # pragma: no cover - manual operation
+            st.error(f"Failed to scrape data for {ticker}: {e}")
 
 uploaded = st.file_uploader(
-    "Upload JSON files (max 3 companies)",
+    "Upload JSON files",
     accept_multiple_files=True,
     type="json",
 )
