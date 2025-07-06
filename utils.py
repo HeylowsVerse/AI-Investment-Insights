@@ -19,8 +19,6 @@ try:
 except Exception:
     nlp = None
 
-KEYWORDS = ["AI", "M&A", "earnings", "guidance"]
-
 
 def load_json(file) -> List[dict]:
     """Load JSON content from uploaded file."""
@@ -114,11 +112,6 @@ def analyze_sentiment(text: str) -> float:
     return TextBlob(text).sentiment.polarity
 
 
-def keyword_frequency(text: str, keywords=KEYWORDS) -> Dict[str, int]:
-    text_lower = text.lower()
-    return {k: text_lower.count(k.lower()) for k in keywords}
-
-
 def extract_entities(text: str) -> List[str]:
     if not nlp:
         return []
@@ -153,7 +146,6 @@ def analyze_text_df(df: pd.DataFrame, text_col: str = "text") -> pd.DataFrame:
                 raise KeyError(text_col)
 
     df["sentiment"] = df[text_col].astype(str).apply(analyze_sentiment)
-    df["keywords"] = df[text_col].astype(str).apply(keyword_frequency)
     df["entities"] = df[text_col].astype(str).apply(extract_entities)
     # Normalize potential date column names
     date_col = None

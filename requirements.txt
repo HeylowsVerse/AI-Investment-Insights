@@ -11,3 +11,5 @@ yfinance
 feedparser
 beautifulsoup4
 requests
+statsmodels
+matplotlib
