@@ -2,6 +2,8 @@ import argparse
 import json
 from datetime import datetime, timedelta
 from urllib.parse import quote
+from pathlib import Path
+from typing import Union
 
 import feedparser
 import requests
@@ -57,10 +59,16 @@ CIK_MAP = {
 }
 
 
-def save_json(data, filename):
-    with open(filename, "w") as f:
+DEFAULT_DOWNLOAD_DIR = Path.home() / "Downloads"
+
+
+def save_json(data, filename, output_dir=DEFAULT_DOWNLOAD_DIR):
+    output_dir = Path(output_dir).expanduser()
+    output_dir.mkdir(parents=True, exist_ok=True)
+    file_path = output_dir / filename
+    with open(file_path, "w") as f:
         json.dump(data, f, indent=4)
-    print(f"Saved {filename}")
+    print(f"Saved {file_path}")
 
 
 def fetch_stock_data(ticker: str, days: int):
@@ -115,26 +123,36 @@ def fetch_google_news(query: str):
     ]
 
 
-def main(ticker: str, days: int):
+def main(ticker: str, days: int, output_dir: Union[str, Path] = DEFAULT_DOWNLOAD_DIR):
+    output_dir = Path(output_dir).expanduser()
     name = SEMICONDUCTOR_COMPANIES.get(ticker.upper(), ticker)
     stock = fetch_stock_data(ticker, days)
-    save_json(stock, f"{ticker}_stock.json")
+    save_json(stock, f"{ticker}_stock.json", output_dir)
 
     url = fetch_filing_url(ticker)
     if url:
         text = download_filing_text(url)
-        save_json({"ticker": ticker, "url": url, "report_text": text}, f"{ticker}_filing_latest.json")
+        save_json(
+            {"ticker": ticker, "url": url, "report_text": text},
+            f"{ticker}_filing_latest.json",
+            output_dir,
+        )
     else:
         print("No recent SEC filing found.")
 
     news = fetch_google_news(name)
     ts = datetime.now().strftime("%Y%m%d_%H%M")
-    save_json(news, f"{ticker}_news_{ts}.json")
+    save_json(news, f"{ticker}_news_{ts}.json", output_dir)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Scrape stock data, SEC filings and news for a company")
     parser.add_argument("ticker", help="Ticker symbol")
     parser.add_argument("--days", type=int, default=90, help="Number of past days for stock prices")
+    parser.add_argument(
+        "--output-dir",
+        default=DEFAULT_DOWNLOAD_DIR,
+        help="Directory to save JSON files (defaults to your Downloads folder)",
+    )
     args = parser.parse_args()
-    main(args.ticker.upper(), args.days)
+    main(args.ticker.upper(), args.days, args.output_dir)
