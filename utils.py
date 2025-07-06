@@ -149,8 +149,18 @@ def analyze_text_df(df: pd.DataFrame, text_col: str = "text") -> pd.DataFrame:
     df["sentiment"] = df[text_col].astype(str).apply(analyze_sentiment)
     df["keywords"] = df[text_col].astype(str).apply(keyword_frequency)
     df["entities"] = df[text_col].astype(str).apply(extract_entities)
+    # Normalize potential date column names
+    date_col = None
     if "date" in df.columns:
-        df["date"] = pd.to_datetime(df["date"])
+        date_col = "date"
+    else:
+        for c in df.columns:
+            if c.lower() in {"datetime", "timestamp", "time", "published", "published_at"}:
+                date_col = c
+                break
+
+    if date_col:
+        df["date"] = pd.to_datetime(df[date_col], errors="coerce")
     return df
 
 
