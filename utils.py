@@ -1,11 +1,17 @@
 import json
+import logging
+import string
+from collections import Counter
 from pathlib import Path
 from typing import Dict, List
 
 import numpy as np
 import pandas as pd
 from textblob import TextBlob
+import requests
+from bs4 import BeautifulSoup
 import spacy
+from spacy.lang.en.stop_words import STOP_WORDS
 
 nlp = None
 try:
@@ -174,3 +180,40 @@ def company_summary(company: str, data: Dict[str, pd.DataFrame]) -> pd.DataFrame
     if "filings" in data:
         result["avg_filing_sentiment"] = data["filings"]["sentiment"].mean()
     return pd.DataFrame([result])
+
+
+def news_analyze(json_file: Path, top_n: int = 20) -> Dict[str, float]:
+    """Return a keyword density tag cloud from a JSON list of article URLs."""
+    urls = load_json(json_file)
+    if not isinstance(urls, list):
+        logging.error("News JSON must contain a list of URLs")
+        return {}
+
+    aggregated_counts: Counter = Counter()
+    total_words = 0
+
+    for url in urls:
+        try:
+            res = requests.get(url, timeout=10)
+            res.raise_for_status()
+            soup = BeautifulSoup(res.text, "html.parser")
+            body_text = " ".join(p.get_text(separator=" ", strip=True) for p in soup.find_all("p"))
+        except Exception as e:  # pragma: no cover - network calls
+            logging.error("Failed to fetch %s: %s", url, e)
+            continue
+
+        text = body_text.lower().translate(str.maketrans("", "", string.punctuation))
+        tokens = [t for t in text.split() if t not in STOP_WORDS]
+        if nlp:
+            doc = nlp(" ".join(tokens))
+            tokens = [t.lemma_ for t in doc if not t.is_space]
+
+        aggregated_counts.update(tokens)
+        total_words += len(tokens)
+
+    if total_words == 0:
+        return {}
+
+    density = {word: count / total_words for word, count in aggregated_counts.items()}
+    top = dict(sorted(density.items(), key=lambda kv: kv[1], reverse=True)[:top_n])
+    return top
