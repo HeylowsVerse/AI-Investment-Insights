@@ -3,14 +3,14 @@ import json
 import zipfile
 from typing import Dict
 from pathlib import Path
+import os
 
 import altair as alt
 import pandas as pd
 import plotly.express as px
 import streamlit as st
 import plotly.graph_objects as go
-from transformers import AutoTokenizer, AutoModelForCausalLM
-import torch
+from huggingface_hub import InferenceClient
 
 import utils
 from msi_forecast import (
@@ -206,19 +206,11 @@ fig.update_layout(
 st.plotly_chart(fig, use_container_width=True)
 st.caption(f"Regression slope: {slope:.3f}, intercept: {intercept:.3f}, RMSE: {rmse:.2f}")
 
-# ---------- MSI Forecast Analysis ----------
-@st.cache_resource
-def load_gemma():
-    tokenizer = AutoTokenizer.from_pretrained("google/gemma-2-2b-it")
-    model = AutoModelForCausalLM.from_pretrained(
-        "google/gemma-2-2b-it",
-        device_map="auto",
-        torch_dtype=torch.bfloat16,
-    )
-    model.eval()
-    return tokenizer, model
+# ---------- MSI Forecast Analysis (via Hugging Face API) ----------
 
-tokenizer, gemma = load_gemma()
+model_id = "google/gemma-2b-it"
+token = os.getenv("HF_TOKEN")
+client = InferenceClient(model=model_id, token=token)
 
 latest_date = future_idx[-1].strftime("%Y-%m")
 latest_msi = float(forecast.values[-1])
@@ -232,14 +224,17 @@ prompt = (
     "and what risks or opportunities they show for semiconductor manufacturing."
 )
 
-inputs = tokenizer(prompt, return_tensors="pt").to(gemma.device)
-outputs = gemma.generate(
-    **inputs,
-    max_new_tokens=150,
-    do_sample=True,
-    temperature=0.7,
-)
-commentary = tokenizer.decode(outputs[0], skip_special_tokens=True)
+with st.spinner("Generating forecast commentary..."):
+    try:
+        messages = [{"role": "user", "content": prompt}]
+        response = client.chat_completion(
+            messages,
+            max_tokens=1000,
+            temperature=0.7,
+        )
+        commentary = response.choices[0].message.content
+    except Exception as e:
+        commentary = f"❌ Error generating commentary: {e}"
 
 st.subheader("\U0001F4DD Automated MSI Forecast Analysis")
 st.write(commentary)
