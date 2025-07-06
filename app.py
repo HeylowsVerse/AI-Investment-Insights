@@ -205,7 +205,13 @@ lines = (
     .encode(x="date:T", y="msi:Q", color="type:N")
 )
 
-st.altair_chart(band + lines, use_container_width=True)
+vline = (
+    alt.Chart(pd.DataFrame({"date": [msi_m.index[-1]]}))
+    .mark_rule(color="gray", strokeDash=[4, 2])
+    .encode(x="date:T")
+)
+
+st.altair_chart(band + lines + vline, use_container_width=True)
 st.caption(
     f"Regression slope: {slope:.3f} intercept: {intercept:.3f} RMSE: {rmse:.3f}"
 )

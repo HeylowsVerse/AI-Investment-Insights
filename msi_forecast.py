@@ -4,35 +4,55 @@ import matplotlib.pyplot as plt
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error
 from statsmodels.tsa.statespace.sarimax import SARIMAX
+from datetime import datetime
 
 
-def generate_sample_msi(start="2020-01-01", periods=8):
-    """Generate simulated quarterly MSI data."""
-    rng = pd.date_range(start=start, periods=periods, freq="QE")
-    trend = np.linspace(100, 120, periods)
-    noise = np.random.randn(periods) * 2
-    return pd.DataFrame({"date": rng, "msi": trend + noise})
+def quarter_to_date(q: str) -> pd.Timestamp:
+    """Convert a YYYYQ# string to the first day of that quarter."""
+    year = int(q[:4])
+    quarter = int(q[-1])
+    month = 3 * (quarter - 1) + 1
+    return pd.Timestamp(datetime(year, month, 1))
+
+
+def generate_sample_msi() -> pd.DataFrame:
+    """Return sample quarterly MSI data for 2024-2025."""
+    quarterly_data = {
+        "Quarter": ["2024Q1", "2024Q2", "2024Q3", "2024Q4", "2025Q1"],
+        "MSI": [2834, 3035, 3214, 3183, 2896],
+    }
+    df_q = pd.DataFrame(quarterly_data)
+    df_q["date"] = df_q["Quarter"].apply(quarter_to_date)
+    df_q = df_q.rename(columns={"MSI": "msi"}).drop(columns="Quarter")
+    return df_q
 
 
 def interpolate_monthly(msi_quarterly: pd.DataFrame) -> pd.Series:
     monthly = (
         msi_quarterly.set_index("date")
-        .resample("ME")
+        .resample("MS")
         .interpolate("linear")
     )
     return monthly["msi"]
 
 
 def sarimax_forecast(msi_monthly: pd.Series, steps: int = 12):
-    model = SARIMAX(msi_monthly, order=(1, 1, 1), seasonal_order=(1, 1, 1, 12))
+    model = SARIMAX(
+        msi_monthly,
+        order=(1, 1, 1),
+        seasonal_order=(0, 0, 0, 0),
+        enforce_stationarity=False,
+        enforce_invertibility=False,
+    )
     res = model.fit(disp=False)
     pred = res.get_forecast(steps=steps)
     return pred.predicted_mean, pred.conf_int(), res
 
 
 def simulate_pmi(dates: pd.DatetimeIndex) -> pd.Series:
-    np.random.seed(0)
-    pmi = 50 + np.sin(np.arange(len(dates)) / 6) * 5 + np.random.randn(len(dates))
+    np.random.seed(42)
+    t = np.linspace(0, 3 * np.pi, len(dates))
+    pmi = 50 + 2 * np.sin(t) + np.random.normal(0, 1.5, len(dates))
     return pd.Series(pmi, index=dates, name="pmi")
 
 
