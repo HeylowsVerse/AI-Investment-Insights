@@ -41,6 +41,11 @@ def parse_uploaded_files(uploaded_files: List) -> Dict[str, Dict[str, pd.DataFra
         elif "filing" in name.lower() or "sec" in name.lower():
             ftype = "filings"
         data = load_json(upl)
+        # Convert JSON to DataFrame. If the JSON file represents a single
+        # record (i.e. a dictionary of scalar values), wrap it in a list so
+        # pandas does not raise a ValueError about missing index.
+        if isinstance(data, dict) and not any(isinstance(v, (list, tuple, dict)) for v in data.values()):
+            data = [data]
         df = pd.DataFrame(data)
         if company not in companies:
             companies[company] = {}
