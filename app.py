@@ -167,7 +167,7 @@ if uploaded:
 else:
     st.info("Use the form above to scrape new data or upload existing JSON files.")
 
-# ---------- MSI Forecast Streamlit Section ----------
+# ---------- MSI Forecast Section ----------
 st.header("MSI Forecast")
 
 # 1. Forecasting
