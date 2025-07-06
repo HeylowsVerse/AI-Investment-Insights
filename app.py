@@ -52,8 +52,11 @@ if uploaded:
             if "news" in data:
                 data["news"] = analyze_text_df(data["news"])
                 trend = aggregate_sentiment(data["news"])
-                fig = px.line(trend, x="date", y="sentiment", title="News Sentiment")
-                st.plotly_chart(fig, use_container_width=True)
+                if not trend.empty and "date" in trend.columns:
+                    fig = px.line(trend, x="date", y="sentiment", title="News Sentiment")
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.write("News sentiment trend unavailable: no dates provided.")
             if "filings" in data:
                 data["filings"] = analyze_text_df(data["filings"])
                 word_freq = pd.DataFrame(data["filings"]["keywords"].tolist()).sum()
