@@ -7,6 +7,7 @@ import altair as alt
 import pandas as pd
 import plotly.express as px
 import streamlit as st
+from wordcloud import WordCloud
 
 from utils import (
     aggregate_sentiment,
@@ -80,6 +81,7 @@ if uploaded:
     companies = parse_uploaded_files(uploaded)
 
     summaries = []
+    sentiment_trends = []
     tabs = st.tabs(list(companies.keys()))
     for (company, data), tab in zip(companies.items(), tabs):
         with tab:
@@ -108,6 +110,8 @@ if uploaded:
                 data["news"] = analyze_text_df(data["news"])
                 trend = aggregate_sentiment(data["news"])
                 if not trend.empty and "date" in trend.columns:
+                    trend["company"] = company
+                    sentiment_trends.append(trend)
                     fig = px.line(
                         trend, x="date", y="sentiment", title="News Sentiment"
                     )
@@ -117,17 +121,22 @@ if uploaded:
             if "filings" in data:
                 data["filings"] = analyze_text_df(data["filings"])
                 word_freq = pd.DataFrame(data["filings"]["keywords"].tolist()).sum()
-                word_chart = (
-                    alt.Chart(
-                        word_freq.reset_index().rename(
-                            {"index": "keyword", 0: "count"}, axis=1
-                        )
-                    )
-                    .mark_bar()
-                    .encode(x="keyword", y="count")
-                )
-                st.altair_chart(word_chart, use_container_width=True)
+                wc = WordCloud(width=800, height=400, background_color="white")
+                wc = wc.generate_from_frequencies(word_freq.to_dict())
+                st.image(wc.to_array(), use_container_width=True)
             summaries.append(company_summary(company, data))
+
+    if len(sentiment_trends) > 1:
+        all_trends = pd.concat(sentiment_trends, ignore_index=True)
+        st.subheader("News Sentiment Comparison")
+        fig = px.line(
+            all_trends,
+            x="date",
+            y="sentiment",
+            color="company",
+            title="News Sentiment by Company",
+        )
+        st.plotly_chart(fig, use_container_width=True)
 
     if summaries:
         summary_df = pd.concat(summaries, ignore_index=True)
