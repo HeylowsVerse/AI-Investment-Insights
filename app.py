@@ -10,13 +10,20 @@ import streamlit as st
 from wordcloud import WordCloud
 
 from utils import (
-    aggregate_sentiment,
     analyze_text_df,
     company_summary,
     compute_stock_indicators,
     parse_uploaded_files,
 )
 from scrape_data import SEMICONDUCTOR_COMPANIES
+
+
+def aggregate_sentiment(df: pd.DataFrame) -> pd.DataFrame:
+    if "date" in df.columns:
+        return (
+            df.groupby(pd.Grouper(key="date", freq="D"))["sentiment"].mean().reset_index()
+        )
+    return pd.DataFrame()
 
 st.set_page_config(page_title="Investment Insights", layout="wide")
 
@@ -112,12 +119,6 @@ if uploaded:
                 if not trend.empty and "date" in trend.columns:
                     trend["company"] = company
                     sentiment_trends.append(trend)
-                    fig = px.line(
-                        trend, x="date", y="sentiment", title="News Sentiment"
-                    )
-                    st.plotly_chart(fig, use_container_width=True)
-                else:
-                    st.write("News sentiment trend unavailable: no dates provided.")
             if "filings" in data:
                 data["filings"] = analyze_text_df(data["filings"])
                 word_freq = (
