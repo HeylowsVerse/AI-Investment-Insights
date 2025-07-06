@@ -126,12 +126,25 @@ def analyze_text_df(df: pd.DataFrame, text_col: str = "text") -> pd.DataFrame:
         possible = [
             col
             for col in df.columns
-            if col.lower() in {"text", "content", "body", "article", "summary", "description", "headline"}
+            if col.lower() in {
+                "text",
+                "content",
+                "body",
+                "article",
+                "summary",
+                "description",
+                "headline",
+            }
         ]
         if possible:
             text_col = possible[0]
         else:
-            raise KeyError(text_col)
+            # Fall back to first string/object column if available
+            object_cols = df.select_dtypes(include="object").columns
+            if len(object_cols) > 0:
+                text_col = object_cols[0]
+            else:
+                raise KeyError(text_col)
 
     df["sentiment"] = df[text_col].astype(str).apply(analyze_sentiment)
     df["keywords"] = df[text_col].astype(str).apply(keyword_frequency)
