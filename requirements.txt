@@ -7,3 +7,7 @@ scikit-learn
 textblob
 spacy
 wordcloud
+yfinance
+feedparser
+beautifulsoup4
+requests
