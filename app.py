@@ -73,4 +73,7 @@ if uploaded:
         csv = summary_df.to_csv(index=False).encode("utf-8")
         st.download_button("Download Summary", data=csv, file_name="summary.csv")
 else:
-    st.info("Upload company JSON files to begin.")
+    st.info(
+        "Step 1: generate JSON files with `scrape_data.py`.\n"
+        "Step 2: upload the generated files here to begin."
+    )
