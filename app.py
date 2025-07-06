@@ -2,6 +2,7 @@ import io
 import json
 import zipfile
 from typing import Dict
+from pathlib import Path
 
 import altair as alt
 import pandas as pd
@@ -17,7 +18,6 @@ from msi_forecast import (
     simulate_pmi,
     regression_predict,
 )
-from pathlib import Path
 from scrape_data import SEMICONDUCTOR_COMPANIES
 
 
@@ -27,6 +27,7 @@ def aggregate_sentiment(df: pd.DataFrame) -> pd.DataFrame:
             df.groupby(pd.Grouper(key="date", freq="D"))["sentiment"].mean().reset_index()
         )
     return pd.DataFrame()
+
 
 st.set_page_config(page_title="Investment Insights", layout="wide")
 
@@ -66,9 +67,7 @@ if scrape_button:
             with zipfile.ZipFile(zip_buffer, "w") as zf:
                 zf.writestr(f"{ticker}_stock.json", stock_data)
                 if result.get("filings"):
-                    filing_data = json.dumps(
-                        result["filings"], indent=4
-                    ).encode("utf-8")
+                    filing_data = json.dumps(result["filings"], indent=4).encode("utf-8")
                     zf.writestr(f"{ticker}_filing_latest.json", filing_data)
                 zf.writestr(f"{ticker}_news_{result['timestamp']}.json", news_data)
             zip_buffer.seek(0)
@@ -78,7 +77,7 @@ if scrape_button:
                 file_name=f"{ticker}_data_{result['timestamp']}.zip",
                 mime="application/zip",
             )
-        except Exception as e:  # pragma: no cover - manual operation
+        except Exception as e:
             st.error(f"Failed to scrape data for {ticker}: {e}")
 
 uploaded = st.file_uploader(
@@ -166,32 +165,42 @@ if uploaded:
         csv = summary_df.to_csv(index=False).encode("utf-8")
         st.download_button("Download Summary", data=csv, file_name="summary.csv")
 else:
-    st.info(
-        "Use the form above to scrape new data or upload existing JSON files."
-    )
+    st.info("Use the form above to scrape new data or upload existing JSON files.")
 
+# ---------- MSI Forecast Streamlit Section ----------
 st.header("MSI Forecast")
+
+# 1. Generate sample MSI
 msi_q = generate_sample_msi()
 msi_m = interpolate_monthly(msi_q)
-forecast, ci, _ = safe_forecast(msi_m)
-future_idx = ci.index
-all_dates = msi_m.index.append(future_idx)
-pmi = simulate_pmi(all_dates)
-reg_pred, slope, intercept, rmse = regression_predict(
-    msi_m, pmi.loc[msi_m.index], pmi.loc[future_idx]
-)
-reg_pred = pd.Series(reg_pred, index=future_idx, name="PMI Regression")
 
+# 2. Forecast with fallback to ARIMA
+forecast, ci, _ = safe_forecast(msi_m, steps=12)
+
+# 3. Simulate PMI over full time horizon
+all_dates = msi_m.index.append(ci.index)
+pmi = simulate_pmi(all_dates)
+
+# 4. Run regression
+reg_pred, slope, intercept, rmse = regression_predict(
+    msi_m, pmi.loc[msi_m.index], pmi.loc[ci.index]
+)
+reg_pred = pd.Series(reg_pred, index=ci.index, name="PMI Regression")
+
+# 5. Assemble Plot DataFrame
 plot_df = (
     pd.concat(
-        [msi_m.rename("Actual MSI"), forecast.rename("SARIMAX Forecast"), reg_pred],
-        axis=1,
+        [msi_m.rename("Actual MSI"),
+         forecast.rename("SARIMAX Forecast"),
+         reg_pred.rename("PMI Regression")],
+        axis=1
     )
     .reset_index()
     .rename(columns={"index": "date"})
 )
 ci_df = ci.reset_index().rename(columns={"index": "date"})
 
+# 6. Altair Plot with confidence bands
 band = (
     alt.Chart(ci_df)
     .mark_area(opacity=0.3)
@@ -200,7 +209,10 @@ band = (
 
 lines = (
     alt.Chart(plot_df)
-    .transform_fold(["Actual MSI", "SARIMAX Forecast", "PMI Regression"], as_=["type", "msi"])
+    .transform_fold(
+        ["Actual MSI", "SARIMAX Forecast", "PMI Regression"],
+        as_=["type", "msi"]
+    )
     .mark_line()
     .encode(x="date:T", y="msi:Q", color="type:N")
 )
@@ -212,6 +224,8 @@ vline = (
 )
 
 st.altair_chart(band + lines + vline, use_container_width=True)
+
+# 7. Show regression summary
 st.caption(
-    f"Regression slope: {slope:.3f} intercept: {intercept:.3f} RMSE: {rmse:.3f}"
+    f"Regression slope: {slope:.3f}, intercept: {intercept:.3f}, RMSE: {rmse:.2f}"
 )
