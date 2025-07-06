@@ -16,6 +16,13 @@ from utils import (
     parse_uploaded_files,
     news_analyze,
 )
+from msi_forecast import (
+    generate_sample_msi,
+    interpolate_monthly,
+    sarimax_forecast,
+    simulate_pmi,
+    regression_predict,
+)
 from pathlib import Path
 from scrape_data import SEMICONDUCTOR_COMPANIES
 
@@ -168,3 +175,43 @@ else:
     st.info(
         "Use the form above to scrape new data or upload existing JSON files."
     )
+
+st.header("MSI Forecast")
+msi_q = generate_sample_msi()
+msi_m = interpolate_monthly(msi_q)
+forecast, ci, _ = sarimax_forecast(msi_m)
+future_idx = ci.index
+all_dates = msi_m.index.append(future_idx)
+pmi = simulate_pmi(all_dates)
+reg_pred, slope, intercept, rmse = regression_predict(
+    msi_m, pmi.loc[msi_m.index], pmi.loc[future_idx]
+)
+reg_pred = pd.Series(reg_pred, index=future_idx, name="PMI Regression")
+
+plot_df = (
+    pd.concat(
+        [msi_m.rename("Actual MSI"), forecast.rename("SARIMAX Forecast"), reg_pred],
+        axis=1,
+    )
+    .reset_index()
+    .rename(columns={"index": "date"})
+)
+ci_df = ci.reset_index().rename(columns={"index": "date"})
+
+band = (
+    alt.Chart(ci_df)
+    .mark_area(opacity=0.3)
+    .encode(x="date:T", y="lower msi:Q", y2="upper msi:Q")
+)
+
+lines = (
+    alt.Chart(plot_df)
+    .transform_fold(["Actual MSI", "SARIMAX Forecast", "PMI Regression"], as_=["type", "msi"])
+    .mark_line()
+    .encode(x="date:T", y="msi:Q", color="type:N")
+)
+
+st.altair_chart(band + lines, use_container_width=True)
+st.caption(
+    f"Regression slope: {slope:.3f} intercept: {intercept:.3f} RMSE: {rmse:.3f}"
+)
