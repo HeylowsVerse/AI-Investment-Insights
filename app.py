@@ -9,13 +9,7 @@ import plotly.express as px
 import streamlit as st
 from wordcloud import WordCloud
 
-from utils import (
-    analyze_text_df,
-    company_summary,
-    compute_stock_indicators,
-    parse_uploaded_files,
-    news_analyze,
-)
+import utils
 from msi_forecast import (
     generate_sample_msi,
     interpolate_monthly,
@@ -105,12 +99,12 @@ if uploaded:
             continue
         upl.seek(0)
         if isinstance(data, list) and all(isinstance(u, str) for u in data):
-            cloud = news_analyze(upl)
+            cloud = utils.news_analyze(upl)
             if cloud:
                 news_clouds[company] = cloud
         upl.seek(0)
 
-    companies = parse_uploaded_files(uploaded)
+    companies = utils.parse_uploaded_files(uploaded)
 
     summaries = []
     sentiment_trends = []
@@ -119,7 +113,7 @@ if uploaded:
         with tab:
             st.header(company)
             if "stock" in data:
-                data["stock"] = compute_stock_indicators(data["stock"])
+                data["stock"] = utils.compute_stock_indicators(data["stock"])
                 fig = px.line(
                     data["stock"],
                     x="date",
@@ -139,7 +133,7 @@ if uploaded:
                     "Download Stock Data", data=csv, file_name=f"{company}_stock.csv"
                 )
             if "news" in data:
-                data["news"] = analyze_text_df(data["news"])
+                data["news"] = utils.analyze_text_df(data["news"])
                 trend = aggregate_sentiment(data["news"])
                 if not trend.empty and "date" in trend.columns:
                     trend["company"] = company
@@ -150,8 +144,8 @@ if uploaded:
                     wc = wc.generate_from_frequencies(news_clouds[company])
                     st.image(wc.to_array(), use_container_width=True)
             if "filings" in data:
-                data["filings"] = analyze_text_df(data["filings"])
-            summaries.append(company_summary(company, data))
+                data["filings"] = utils.analyze_text_df(data["filings"])
+            summaries.append(utils.company_summary(company, data))
 
     if len(sentiment_trends) > 1:
         all_trends = pd.concat(sentiment_trends, ignore_index=True)

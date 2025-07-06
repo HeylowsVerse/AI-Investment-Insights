@@ -8,7 +8,7 @@ from statsmodels.tsa.statespace.sarimax import SARIMAX
 
 def generate_sample_msi(start="2020-01-01", periods=8):
     """Generate simulated quarterly MSI data."""
-    rng = pd.date_range(start=start, periods=periods, freq="Q")
+    rng = pd.date_range(start=start, periods=periods, freq="QE")
     trend = np.linspace(100, 120, periods)
     noise = np.random.randn(periods) * 2
     return pd.DataFrame({"date": rng, "msi": trend + noise})
@@ -17,7 +17,7 @@ def generate_sample_msi(start="2020-01-01", periods=8):
 def interpolate_monthly(msi_quarterly: pd.DataFrame) -> pd.Series:
     monthly = (
         msi_quarterly.set_index("date")
-        .resample("M")
+        .resample("ME")
         .interpolate("linear")
     )
     return monthly["msi"]
@@ -33,7 +33,7 @@ def sarimax_forecast(msi_monthly: pd.Series, steps: int = 12):
 def simulate_pmi(dates: pd.DatetimeIndex) -> pd.Series:
     np.random.seed(0)
     pmi = 50 + np.sin(np.arange(len(dates)) / 6) * 5 + np.random.randn(len(dates))
-    return pd.Series(pmi, index=dates, name="PMI")
+    return pd.Series(pmi, index=dates, name="pmi")
 
 
 def regression_predict(msi: pd.Series, pmi: pd.Series, future_pmi: pd.Series):
@@ -41,8 +41,8 @@ def regression_predict(msi: pd.Series, pmi: pd.Series, future_pmi: pd.Series):
     X = df[["pmi"]]
     y = df["msi"]
     model = LinearRegression().fit(X, y)
-    preds = model.predict(future_pmi.to_frame())
-    rmse = mean_squared_error(y, model.predict(X), squared=False)
+    preds = model.predict(future_pmi.to_frame(name="pmi"))
+    rmse = mean_squared_error(y, model.predict(X)) ** 0.5
     return preds, model.coef_[0], model.intercept_, rmse
 
 
