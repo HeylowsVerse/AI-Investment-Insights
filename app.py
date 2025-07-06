@@ -170,51 +170,69 @@ else:
 # ---------- MSI Forecast Streamlit Section ----------
 st.header("MSI Forecast")
 
-# 1. Generate sample MSI
+# Data prep
 msi_q = generate_sample_msi()
 msi_m = interpolate_monthly(msi_q)
-
-# 2. Forecast with fallback to ARIMA
-forecast, ci, _ = safe_forecast(msi_m, steps=12)
-
-# 3. Simulate PMI over full time horizon
-all_dates = msi_m.index.append(ci.index)
+forecast, ci, _ = safe_forecast(msi_m)
+future_idx = ci.index
+all_dates = msi_m.index.append(future_idx)
 pmi = simulate_pmi(all_dates)
 
-# 4. Run regression
+# Regression
 reg_pred, slope, intercept, rmse = regression_predict(
-    msi_m, pmi.loc[msi_m.index], pmi.loc[ci.index]
+    msi_m, pmi.loc[msi_m.index], pmi.loc[future_idx]
 )
-reg_pred = pd.Series(reg_pred, index=ci.index, name="PMI Regression")
+reg_pred = pd.Series(reg_pred, index=future_idx, name="PMI Regression")
 
-# 5. Assemble Plot DataFrame
+# Combine data
 plot_df = (
     pd.concat(
-        [msi_m.rename("Actual MSI"),
-         forecast.rename("SARIMAX Forecast"),
-         reg_pred.rename("PMI Regression")],
-        axis=1
+        [msi_m.rename("Actual MSI"), forecast.rename("SARIMAX Forecast"), reg_pred],
+        axis=1,
     )
     .reset_index()
     .rename(columns={"index": "date"})
+    .melt(id_vars="date", var_name="type", value_name="msi")
 )
+
 ci_df = ci.reset_index().rename(columns={"index": "date"})
 
-# 6. Altair Plot with confidence bands
-band = (
-    alt.Chart(ci_df)
-    .mark_area(opacity=0.3)
-    .encode(x="date:T", y="lower msi:Q", y2="upper msi:Q")
+# Normalize PMI to MSI scale for overlay (altair doesn't support true dual y-axis)
+pmi_norm = (pmi - pmi.min()) / (pmi.max() - pmi.min())
+msi_min, msi_max = plot_df["msi"].min(), plot_df["msi"].max()
+pmi_scaled = pmi_norm * (msi_max - msi_min) + msi_min
+pmi_df = pd.DataFrame({"date": pmi_scaled.index, "PMI": pmi_scaled.values})
+
+# Altair chart
+msi_lines = (
+    alt.Chart(plot_df)
+    .mark_line()
+    .encode(
+        x="date:T",
+        y="msi:Q",
+        color="type:N",
+        tooltip=["date:T", "type:N", "msi:Q"]
+    )
 )
 
-lines = (
-    alt.Chart(plot_df)
-    .transform_fold(
-        ["Actual MSI", "SARIMAX Forecast", "PMI Regression"],
-        as_=["type", "msi"]
+ci_band = (
+    alt.Chart(ci_df)
+    .mark_area(opacity=0.3)
+    .encode(
+        x="date:T",
+        y="lower msi:Q",
+        y2="upper msi:Q"
     )
-    .mark_line()
-    .encode(x="date:T", y="msi:Q", color="type:N")
+)
+
+pmi_line = (
+    alt.Chart(pmi_df)
+    .mark_line(color="gray", strokeDash=[3, 2])
+    .encode(
+        x="date:T",
+        y=alt.Y("PMI:Q").scale(domain=[msi_min, msi_max]),
+        tooltip=["date:T", alt.Tooltip("PMI:Q", title="PMI (scaled)")]
+    )
 )
 
 vline = (
@@ -223,9 +241,8 @@ vline = (
     .encode(x="date:T")
 )
 
-st.altair_chart(band + lines + vline, use_container_width=True)
+st.altair_chart((ci_band + msi_lines + pmi_line + vline).interactive(), use_container_width=True)
 
-# 7. Show regression summary
 st.caption(
     f"Regression slope: {slope:.3f}, intercept: {intercept:.3f}, RMSE: {rmse:.2f}"
 )
