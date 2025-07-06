@@ -9,6 +9,8 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 import plotly.graph_objects as go
+from transformers import AutoTokenizer, AutoModelForCausalLM
+import torch
 
 import utils
 from msi_forecast import (
@@ -20,14 +22,12 @@ from msi_forecast import (
 )
 from scrape_data import SEMICONDUCTOR_COMPANIES
 
-
 def aggregate_sentiment(df: pd.DataFrame) -> pd.DataFrame:
     if "date" in df.columns:
         return (
             df.groupby(pd.Grouper(key="date", freq="D"))["sentiment"].mean().reset_index()
         )
     return pd.DataFrame()
-
 
 st.set_page_config(page_title="Investment Insights", layout="wide")
 
@@ -205,3 +205,41 @@ fig.update_layout(
 
 st.plotly_chart(fig, use_container_width=True)
 st.caption(f"Regression slope: {slope:.3f}, intercept: {intercept:.3f}, RMSE: {rmse:.2f}")
+
+# ---------- MSI Forecast Analysis ----------
+@st.cache_resource
+def load_gemma():
+    tokenizer = AutoTokenizer.from_pretrained("google/gemma-2-2b-it")
+    model = AutoModelForCausalLM.from_pretrained(
+        "google/gemma-2-2b-it",
+        device_map="auto",
+        torch_dtype=torch.bfloat16,
+    )
+    model.eval()
+    return tokenizer, model
+
+tokenizer, gemma = load_gemma()
+
+latest_date = future_idx[-1].strftime("%Y-%m")
+latest_msi = float(forecast.values[-1])
+latest_pmi = float(pmi.loc[future_idx[-1]])
+
+prompt = (
+    f"You are a financial analyst.\n"
+    f"The latest MSI forecast for {latest_date} is {latest_msi:.1f}, "
+    f"with PMI at {latest_pmi:.1f}.\n"
+    "Write a brief analyst commentary on how MSI and PMI trends connect "
+    "and what risks or opportunities they show for semiconductor manufacturing."
+)
+
+inputs = tokenizer(prompt, return_tensors="pt").to(gemma.device)
+outputs = gemma.generate(
+    **inputs,
+    max_new_tokens=150,
+    do_sample=True,
+    temperature=0.7,
+)
+commentary = tokenizer.decode(outputs[0], skip_special_tokens=True)
+
+st.subheader("\U0001F4DD Automated MSI Forecast Analysis")
+st.write(commentary)
