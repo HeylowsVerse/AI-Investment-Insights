@@ -79,7 +79,8 @@ def regression_predict(msi: pd.Series | pd.DataFrame, pmi: pd.Series | pd.DataFr
 
     future_df = future_pmi.to_frame()
     future_df.columns = ["pmi"]
-    preds = model.predict(future_df)
+    # Pass raw values to avoid feature name mismatches
+    preds = model.predict(future_df.values)
 
     rmse = mean_squared_error(y, model.predict(X)) ** 0.5
     return preds, model.coef_[0], model.intercept_, rmse
