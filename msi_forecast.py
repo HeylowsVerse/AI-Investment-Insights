@@ -56,10 +56,20 @@ def simulate_pmi(dates: pd.DatetimeIndex) -> pd.Series:
     return pd.Series(pmi, index=dates, name="pmi")
 
 
-def regression_predict(msi: pd.Series, pmi: pd.Series, future_pmi: pd.Series):
+def _series_from_data(data: pd.Series | pd.DataFrame, name: str) -> pd.Series:
+    """Return a Series with the given name from Series or single-column DataFrame."""
+    if isinstance(data, pd.DataFrame):
+        if len(data.columns) != 1:
+            raise ValueError("PMI input must have a single column")
+        data = data.iloc[:, 0]
+    return pd.Series(data.values, index=data.index, name=name)
+
+
+def regression_predict(msi: pd.Series | pd.DataFrame, pmi: pd.Series | pd.DataFrame, future_pmi: pd.Series | pd.DataFrame):
     """Predict future MSI values based on PMI."""
-    pmi = pmi.rename("pmi")
-    future_pmi = future_pmi.rename("pmi")
+    msi = _series_from_data(msi, "msi")
+    pmi = _series_from_data(pmi, "pmi")
+    future_pmi = _series_from_data(future_pmi, "pmi")
 
     df = pd.DataFrame({"msi": msi, "pmi": pmi}).dropna()
     X = df[["pmi"]]
