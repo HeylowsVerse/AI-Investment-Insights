@@ -144,18 +144,6 @@ if uploaded:
                     st.image(wc.to_array(), use_container_width=True)
             if "filings" in data:
                 data["filings"] = analyze_text_df(data["filings"])
-                word_freq = (
-                    pd.DataFrame(data["filings"]["keywords"].tolist())
-                    .sum()
-                    .astype(int)
-                )
-                word_freq = word_freq[word_freq > 0]
-                if not word_freq.empty:
-                    wc = WordCloud(width=800, height=400, background_color="white")
-                    wc = wc.generate_from_frequencies(word_freq.to_dict())
-                    st.image(wc.to_array(), use_container_width=True)
-                else:
-                    st.write("No keyword frequencies found in filings.")
             summaries.append(company_summary(company, data))
 
     if len(sentiment_trends) > 1:

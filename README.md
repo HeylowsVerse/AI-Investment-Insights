@@ -24,9 +24,19 @@ This repository contains a simple Streamlit application for analyzing investment
 ## Features
 - Upload and assign JSON files to companies
 - Stock price indicators (moving averages, Bollinger Bands, RSI)
-- News and filing sentiment analysis with keyword cloud visualization
+- News and filing sentiment analysis
 - Tag cloud generation from article URLs via `news_analyze`
 - Cross-company news sentiment comparison charts and downloadable CSV summaries
 - Scrape data directly in the app with download buttons
+
+## MSI Trend Forecasting
+The `msi_forecast.py` script demonstrates monthly silicon wafer shipment (MSI)
+forecasting using SARIMAX and Purchasing Managers' Index (PMI) regression.
+
+Run the script:
+
+```bash
+python msi_forecast.py
+```
 
 
