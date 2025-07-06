@@ -22,7 +22,3 @@ This repository contains a simple Streamlit application for analyzing investment
 - News and filing sentiment analysis with keyword frequency
 - Cross-company comparison charts and downloadable CSV summaries
 
-## Data Format Notes
-Stock JSON files should include a column representing the trade date. The app
-looks for a column named `date` but will also accept common alternatives such as
-`datetime` or `timestamp`.
