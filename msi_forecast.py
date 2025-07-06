@@ -8,14 +8,12 @@ from statsmodels.tsa.arima.model import ARIMA
 from datetime import datetime
 import warnings
 
-
 def quarter_to_date(q: str) -> pd.Timestamp:
     """Convert a YYYYQ# string to the first day of that quarter."""
     year = int(q[:4])
     quarter = int(q[-1])
     month = 3 * (quarter - 1) + 1
     return pd.Timestamp(datetime(year, month, 1))
-
 
 def generate_sample_msi() -> pd.DataFrame:
     """Return sample quarterly MSI data for 2024-2025."""
@@ -28,7 +26,6 @@ def generate_sample_msi() -> pd.DataFrame:
     df_q = df_q.rename(columns={"MSI": "msi"}).drop(columns="Quarter")
     return df_q
 
-
 def interpolate_monthly(msi_quarterly: pd.DataFrame) -> pd.Series:
     monthly = (
         msi_quarterly.set_index("date")
@@ -36,7 +33,6 @@ def interpolate_monthly(msi_quarterly: pd.DataFrame) -> pd.Series:
         .interpolate("linear")
     )
     return monthly["msi"]
-
 
 def safe_forecast(msi_monthly: pd.Series, steps: int = 12):
     """Try SARIMAX, fallback to ARIMA if SARIMAX fails."""
@@ -66,13 +62,11 @@ def safe_forecast(msi_monthly: pd.Series, steps: int = 12):
         except Exception as e2:
             raise RuntimeError(f"Both SARIMAX and ARIMA failed: {e2}")
 
-
 def simulate_pmi(dates: pd.DatetimeIndex) -> pd.Series:
     np.random.seed(42)
     t = np.linspace(0, 3 * np.pi, len(dates))
     pmi = 50 + 2 * np.sin(t) + np.random.normal(0, 1.5, len(dates))
     return pd.Series(pmi, index=dates, name="pmi")
-
 
 def _series_from_data(data: pd.Series | pd.DataFrame, name: str) -> pd.Series:
     """Return a Series with the given name from Series or single-column DataFrame."""
@@ -82,29 +76,25 @@ def _series_from_data(data: pd.Series | pd.DataFrame, name: str) -> pd.Series:
         data = data.iloc[:, 0]
     return pd.Series(data.values, index=data.index, name=name)
 
-
-def regression_predict(msi: pd.Series | pd.DataFrame,
-                       pmi: pd.Series | pd.DataFrame,
-                       future_pmi: pd.Series | pd.DataFrame):
+def regression_predict(msi: pd.Series | pd.DataFrame, pmi: pd.Series | pd.DataFrame, future_pmi: pd.Series | pd.DataFrame):
     """Predict future MSI values based on PMI."""
     msi = _series_from_data(msi, "msi")
     pmi = _series_from_data(pmi, "pmi")
     future_pmi = _series_from_data(future_pmi, "pmi")
 
-    # Train model
     df = pd.DataFrame({"msi": msi, "pmi": pmi}).dropna()
     X = df[["pmi"]]
     y = df["msi"]
+
     model = LinearRegression().fit(X, y)
 
-    # Predict using future PMI (preserve feature name)
-    future_df = future_pmi.to_frame(name="pmi")
+    future_df = future_pmi.to_frame()
+    future_df.columns = ["pmi"]
     preds = model.predict(future_df)
 
     # Evaluate training error
     rmse = mean_squared_error(y, model.predict(X)) ** 0.5
     return preds, model.coef_[0], model.intercept_, rmse
-
 
 def plot_results(msi, forecast, ci, pmi, reg_pred):
     fig, ax = plt.subplots(figsize=(10, 6))
@@ -123,7 +113,6 @@ def plot_results(msi, forecast, ci, pmi, reg_pred):
     plt.tight_layout()
     plt.show()
 
-
 def main():
     msi_q = generate_sample_msi()
     msi_m = interpolate_monthly(msi_q)
@@ -137,7 +126,6 @@ def main():
 
     print(f"Regression slope: {slope:.3f} intercept: {intercept:.3f} RMSE: {rmse:.3f}")
     plot_results(pd.concat([msi_m, forecast]), forecast, ci, pmi, reg_pred)
-
 
 if __name__ == "__main__":
     main()
