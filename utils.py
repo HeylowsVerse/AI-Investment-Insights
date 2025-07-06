@@ -163,14 +163,6 @@ def analyze_text_df(df: pd.DataFrame, text_col: str = "text") -> pd.DataFrame:
         df["date"] = pd.to_datetime(df[date_col], errors="coerce")
     return df
 
-
-def aggregate_sentiment(df: pd.DataFrame) -> pd.DataFrame:
-    if "date" in df.columns:
-        return df.groupby(pd.Grouper(key="date", freq="D"))["sentiment"].mean().reset_index()
-    else:
-        return pd.DataFrame()
-
-
 def company_summary(company: str, data: Dict[str, pd.DataFrame]) -> pd.DataFrame:
     """Return summary metrics for a company."""
     result = {"company": company}
