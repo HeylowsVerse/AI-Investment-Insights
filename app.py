@@ -14,7 +14,9 @@ from utils import (
     company_summary,
     compute_stock_indicators,
     parse_uploaded_files,
+    news_analyze,
 )
+from pathlib import Path
 from scrape_data import SEMICONDUCTOR_COMPANIES
 
 
@@ -85,6 +87,22 @@ uploaded = st.file_uploader(
 )
 
 if uploaded:
+    news_clouds: Dict[str, Dict[str, float]] = {}
+    for upl in uploaded:
+        name = Path(upl.name).stem
+        company = name.split("_")[0]
+        try:
+            data = json.load(upl)
+        except Exception:
+            upl.seek(0)
+            continue
+        upl.seek(0)
+        if isinstance(data, list) and all(isinstance(u, str) for u in data):
+            cloud = news_analyze(upl)
+            if cloud:
+                news_clouds[company] = cloud
+        upl.seek(0)
+
     companies = parse_uploaded_files(uploaded)
 
     summaries = []
@@ -119,6 +137,11 @@ if uploaded:
                 if not trend.empty and "date" in trend.columns:
                     trend["company"] = company
                     sentiment_trends.append(trend)
+                if company in news_clouds:
+                    st.subheader("News Sentiment Tag Cloud")
+                    wc = WordCloud(width=800, height=400, background_color="white")
+                    wc = wc.generate_from_frequencies(news_clouds[company])
+                    st.image(wc.to_array(), use_container_width=True)
             if "filings" in data:
                 data["filings"] = analyze_text_df(data["filings"])
                 word_freq = (
