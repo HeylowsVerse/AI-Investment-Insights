@@ -11,7 +11,7 @@ This repository contains a simple Streamlit application for analyzing investment
    python -m spacy download en_core_web_sm
    ```
 
-2. Generate JSON files using the scraping script:
+2. Generate JSON files using the scraping script (or scrape directly in the app):
    ```bash
    python scrape_data.py TICKER --days 60
    ```
@@ -26,5 +26,6 @@ This repository contains a simple Streamlit application for analyzing investment
 - Stock price indicators (moving averages, Bollinger Bands, RSI)
 - News and filing sentiment analysis with keyword frequency
 - Cross-company comparison charts and downloadable CSV summaries
+- Scrape data directly in the app with download buttons
 
 

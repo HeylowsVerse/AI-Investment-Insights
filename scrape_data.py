@@ -123,26 +123,42 @@ def fetch_google_news(query: str):
     ]
 
 
-def main(ticker: str, days: int, output_dir: Union[str, Path] = DEFAULT_DOWNLOAD_DIR):
+def main(
+    ticker: str,
+    days: int,
+    output_dir: Union[str, Path] = DEFAULT_DOWNLOAD_DIR,
+) -> dict:
+    """Scrape data and save JSON files.
+
+    Returns a dictionary with the scraped data so callers (e.g. the
+    Streamlit app) can offer download buttons without reading the files
+    back from disk.
+    """
     output_dir = Path(output_dir).expanduser()
+    result: dict = {}
     name = SEMICONDUCTOR_COMPANIES.get(ticker.upper(), ticker)
+
     stock = fetch_stock_data(ticker, days)
     save_json(stock, f"{ticker}_stock.json", output_dir)
+    result["stock"] = stock
 
     url = fetch_filing_url(ticker)
     if url:
         text = download_filing_text(url)
-        save_json(
-            {"ticker": ticker, "url": url, "report_text": text},
-            f"{ticker}_filing_latest.json",
-            output_dir,
-        )
+        filing_data = {"ticker": ticker, "url": url, "report_text": text}
+        save_json(filing_data, f"{ticker}_filing_latest.json", output_dir)
+        result["filings"] = filing_data
     else:
         print("No recent SEC filing found.")
+        result["filings"] = None
 
     news = fetch_google_news(name)
     ts = datetime.now().strftime("%Y%m%d_%H%M")
     save_json(news, f"{ticker}_news_{ts}.json", output_dir)
+    result["news"] = news
+    result["timestamp"] = ts
+
+    return result
 
 
 if __name__ == "__main__":
