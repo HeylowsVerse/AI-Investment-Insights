@@ -13,32 +13,33 @@ from utils import (
     compute_stock_indicators,
     parse_uploaded_files,
 )
+from scrape_data import SEMICONDUCTOR_COMPANIES
 
 st.set_page_config(page_title="Investment Insights", layout="wide")
 
 st.title("Multi-Company Investment Insight App")
 
-# ---------- Scrape Data Section ----------
-st.subheader("Scrape Data")
+# ---------- Data Extraction Section ----------
+st.subheader("Data Extraction")
 with st.form("scrape_form"):
-    tickers_input = st.text_input(
-        "Ticker symbol(s) (comma separated)", help="Up to 3 companies"
+    company_options = {f"{name} ({ticker})": ticker for ticker, name in SEMICONDUCTOR_COMPANIES.items()}
+    tickers_input = st.multiselect(
+        "Select Company", list(company_options.keys()), help="Up to 3 companies", max_selections=3
     )
-    days_input = st.number_input(
-        "Days of historical prices",
-        min_value=1,
-        max_value=3650,
-        value=90,
-    )
-    scrape_button = st.form_submit_button("Scrape")
+
+    day_map = {"30D": 30, "60D": 60, "90D": 90, "120D": 120}
+    days_label = st.selectbox("Days of historical prices", list(day_map.keys()), index=2)
+
+    scrape_button = st.form_submit_button("Start")
 
 if scrape_button:
-    tickers = [t.strip().upper() for t in tickers_input.split(",") if t.strip()]
+    tickers = [company_options[sel] for sel in tickers_input]
     if len(tickers) > 3:
-        st.error("Please enter no more than 3 tickers.")
+        st.error("Please select no more than 3 companies.")
     else:
         from scrape_data import main as scrape_main
 
+        days_input = day_map[days_label]
         for tkr in tickers:
             with st.spinner(f"Scraping data for {tkr}..."):
                 try:
