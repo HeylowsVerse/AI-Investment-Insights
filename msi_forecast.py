@@ -65,24 +65,26 @@ def _series_from_data(data: pd.Series | pd.DataFrame, name: str) -> pd.Series:
     return pd.Series(data.values, index=data.index, name=name)
 
 
-def regression_predict(msi: pd.Series | pd.DataFrame, pmi: pd.Series | pd.DataFrame, future_pmi: pd.Series | pd.DataFrame):
+def regression_predict(msi: pd.Series | pd.DataFrame,
+                       pmi: pd.Series | pd.DataFrame,
+                       future_pmi: pd.Series | pd.DataFrame):
     """Predict future MSI values based on PMI."""
     msi = _series_from_data(msi, "msi")
     pmi = _series_from_data(pmi, "pmi")
     future_pmi = _series_from_data(future_pmi, "pmi")
 
+    # Train model
     df = pd.DataFrame({"msi": msi, "pmi": pmi}).dropna()
     X = df[["pmi"]]
     y = df["msi"]
-
     model = LinearRegression().fit(X, y)
 
-    future_df = future_pmi.to_frame()
-    future_df.columns = ["pmi"]
-    # Pass raw values to avoid feature name mismatches
-    preds = model.predict(future_df.values)
+    # Predict using future PMI (preserve feature name)
+    future_df = future_pmi.to_frame(name="pmi")
+    preds = model.predict(future_df)
 
-    rmse = mean_squared_error(y, model.predict(X)) ** 0.5
+    # Evaluate training error
+    rmse = mean_squared_error(y, model.predict(X), squared=False)
     return preds, model.coef_[0], model.intercept_, rmse
 
 
