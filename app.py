@@ -187,76 +187,21 @@ reg_pred = pd.Series(reg_pred, index=future_idx, name="PMI Regression")
 # 3. Combine into plot
 fig = go.Figure()
 
-# Actual MSI
-fig.add_trace(go.Scatter(
-    x=msi_m.index,
-    y=msi_m.values,
-    mode="lines+markers",
-    name="Actual MSI",
-    yaxis="y1"
-))
+fig.add_trace(go.Scatter(x=msi_m.index, y=msi_m.values, mode="lines+markers", name="Actual MSI", yaxis="y1"))
+fig.add_trace(go.Scatter(x=future_idx, y=forecast.values, mode="lines+markers", name="SARIMAX Forecast", line=dict(dash="dash"), yaxis="y1"))
+fig.add_trace(go.Scatter(x=future_idx.tolist() + future_idx[::-1].tolist(), y=ci["upper msi"].tolist() + ci["lower msi"][::-1].tolist(), fill="toself", fillcolor="rgba(173,216,230,0.3)", line=dict(color="rgba(255,255,255,0)"), hoverinfo="skip", showlegend=True, name="95% CI", yaxis="y1"))
+fig.add_trace(go.Scatter(x=future_idx, y=reg_pred.values, mode="lines+markers", name="PMI Regression", line=dict(color="orange", dash="dot"), yaxis="y1"))
+fig.add_trace(go.Scatter(x=all_dates, y=pmi.values, mode="lines", name="PMI", line=dict(color="gray"), yaxis="y2"))
 
-# SARIMAX Forecast
-fig.add_trace(go.Scatter(
-    x=future_idx,
-    y=forecast.values,
-    mode="lines+markers",
-    name="SARIMAX Forecast",
-    line=dict(dash="dash"),
-    yaxis="y1"
-))
-
-# Confidence interval
-fig.add_trace(go.Scatter(
-    x=future_idx.tolist() + future_idx[::-1].tolist(),
-    y=ci["upper msi"].tolist() + ci["lower msi"][::-1].tolist(),
-    fill="toself",
-    fillcolor="rgba(173,216,230,0.3)",
-    line=dict(color="rgba(255,255,255,0)"),
-    hoverinfo="skip",
-    showlegend=True,
-    name="95% CI",
-    yaxis="y1"
-))
-
-# PMI Regression
-fig.add_trace(go.Scatter(
-    x=future_idx,
-    y=reg_pred.values,
-    mode="lines+markers",
-    name="PMI Regression",
-    line=dict(color="orange", dash="dot"),
-    yaxis="y1"
-))
-
-# PMI (Right Y-axis)
-fig.add_trace(go.Scatter(
-    x=all_dates,
-    y=pmi.values,
-    mode="lines",
-    name="PMI",
-    line=dict(color="gray"),
-    yaxis="y2"
-))
-
-# Layout
 fig.update_layout(
     title="MSI Forecast with PMI Overlay",
     xaxis=dict(title="Date"),
     yaxis=dict(title="MSI (Million Square Inches)", side="left"),
-    yaxis2=dict(
-        title="PMI",
-        overlaying="y",
-        side="right",
-        showgrid=False
-    ),
-    legend=dict(x=0.01, y=0.99),
+    yaxis2=dict(title="PMI", overlaying="y", side="right", showgrid=False),
+    legend=dict(orientation="h", yanchor="bottom", y=-0.3, xanchor="center", x=0.5),
     margin=dict(l=40, r=40, t=40, b=40),
     hovermode="x unified"
 )
 
-# 4. Display
 st.plotly_chart(fig, use_container_width=True)
-st.caption(
-    f"Regression slope: {slope:.3f}, intercept: {intercept:.3f}, RMSE: {rmse:.2f}"
-)
+st.caption(f"Regression slope: {slope:.3f}, intercept: {intercept:.3f}, RMSE: {rmse:.2f}")
