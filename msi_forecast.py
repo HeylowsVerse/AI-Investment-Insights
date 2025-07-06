@@ -4,7 +4,9 @@ import matplotlib.pyplot as plt
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error
 from statsmodels.tsa.statespace.sarimax import SARIMAX
+from statsmodels.tsa.arima.model import ARIMA
 from datetime import datetime
+import warnings
 
 
 def quarter_to_date(q: str) -> pd.Timestamp:
@@ -36,17 +38,33 @@ def interpolate_monthly(msi_quarterly: pd.DataFrame) -> pd.Series:
     return monthly["msi"]
 
 
-def sarimax_forecast(msi_monthly: pd.Series, steps: int = 12):
-    model = SARIMAX(
-        msi_monthly,
-        order=(1, 1, 1),
-        seasonal_order=(0, 0, 0, 0),
-        enforce_stationarity=False,
-        enforce_invertibility=False,
-    )
-    res = model.fit(disp=False)
-    pred = res.get_forecast(steps=steps)
-    return pred.predicted_mean, pred.conf_int(), res
+def safe_forecast(msi_monthly: pd.Series, steps: int = 12):
+    """Try SARIMAX, fallback to ARIMA if SARIMAX fails."""
+    try:
+        model = SARIMAX(
+            msi_monthly,
+            order=(1, 0, 0),
+            seasonal_order=(0, 0, 0, 0),
+            enforce_stationarity=True,
+            enforce_invertibility=True,
+            simple_differencing=True,
+        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            res = model.fit(disp=False)
+        pred = res.get_forecast(steps=steps)
+        return pred.predicted_mean, pred.conf_int(), res
+
+    except Exception as e:
+        print(f"[Fallback] SARIMAX failed: {e} — switching to ARIMA")
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                arima = ARIMA(msi_monthly, order=(1, 1, 0)).fit()
+            forecast = arima.get_forecast(steps=steps)
+            return forecast.predicted_mean, forecast.conf_int(), arima
+        except Exception as e2:
+            raise RuntimeError(f"Both SARIMAX and ARIMA failed: {e2}")
 
 
 def simulate_pmi(dates: pd.DatetimeIndex) -> pd.Series:
@@ -109,7 +127,7 @@ def plot_results(msi, forecast, ci, pmi, reg_pred):
 def main():
     msi_q = generate_sample_msi()
     msi_m = interpolate_monthly(msi_q)
-    forecast, ci, _ = sarimax_forecast(msi_m)
+    forecast, ci, _ = safe_forecast(msi_m)
     all_dates = msi_m.index.append(ci.index)
     pmi = simulate_pmi(all_dates)
     reg_pred, slope, intercept, rmse = regression_predict(
