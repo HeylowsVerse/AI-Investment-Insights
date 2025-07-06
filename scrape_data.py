@@ -66,7 +66,15 @@ def save_json(data, filename):
 def fetch_stock_data(ticker: str, days: int):
     end_date = datetime.today()
     start_date = end_date - timedelta(days=days)
-    df = yf.download(ticker, start=start_date.strftime("%Y-%m-%d"), end=end_date.strftime("%Y-%m-%d"), auto_adjust=True)
+    df = yf.download(
+        ticker,
+        start=start_date.strftime("%Y-%m-%d"),
+        end=end_date.strftime("%Y-%m-%d"),
+        auto_adjust=True,
+        progress=False,
+        threads=False,
+        multi_level_index=False,
+    )
     if df.empty:
         raise ValueError("No stock data returned")
     df = df.reset_index()
