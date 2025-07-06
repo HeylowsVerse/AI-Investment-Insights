@@ -67,6 +67,26 @@ def compute_stock_indicators(df: pd.DataFrame) -> pd.DataFrame:
 
     df["date"] = pd.to_datetime(df[date_col])
     df.sort_values("date", inplace=True)
+
+    # Identify the column containing closing prices
+    close_col = None
+    for c in df.columns:
+        if c.lower() == "close":
+            close_col = c
+            break
+    if not close_col:
+        for c in df.columns:
+            if "close" in c.lower():
+                close_col = c
+                break
+    if not close_col:
+        raise KeyError("close")
+
+    if close_col != "close":
+        df["close"] = pd.to_numeric(df[close_col], errors="coerce")
+    else:
+        df["close"] = pd.to_numeric(df["close"], errors="coerce")
+
     df["return"] = df["close"].pct_change()
     for window in [20, 50, 200]:
         df[f"ma{window}"] = df["close"].rolling(window).mean()
