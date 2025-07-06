@@ -1,6 +1,6 @@
 # AI Investment Insights App
 
-This repository contains a simple Streamlit application for analyzing investment data for up to three companies. Users can upload JSON files containing stock price data, news articles, and SEC filings. The app applies basic quantitative finance and NLP techniques to generate insights and visualizations.
+This repository contains a simple Streamlit application for analyzing investment data for a single company at a time. Users can upload JSON files containing stock price data, news articles, and SEC filings. The app applies basic quantitative finance and NLP techniques to generate insights and visualizations.
 
 ## Running the App
 
