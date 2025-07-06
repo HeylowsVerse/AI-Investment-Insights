@@ -122,9 +122,20 @@ def extract_entities(text: str) -> List[str]:
 
 def analyze_text_df(df: pd.DataFrame, text_col: str = "text") -> pd.DataFrame:
     df = df.copy()
-    df["sentiment"] = df[text_col].apply(analyze_sentiment)
-    df["keywords"] = df[text_col].apply(keyword_frequency)
-    df["entities"] = df[text_col].apply(extract_entities)
+    if text_col not in df.columns:
+        possible = [
+            col
+            for col in df.columns
+            if col.lower() in {"text", "content", "body", "article", "summary", "description", "headline"}
+        ]
+        if possible:
+            text_col = possible[0]
+        else:
+            raise KeyError(text_col)
+
+    df["sentiment"] = df[text_col].astype(str).apply(analyze_sentiment)
+    df["keywords"] = df[text_col].astype(str).apply(keyword_frequency)
+    df["entities"] = df[text_col].astype(str).apply(extract_entities)
     if "date" in df.columns:
         df["date"] = pd.to_datetime(df["date"])
     return df
