@@ -13,7 +13,7 @@ import utils
 from msi_forecast import (
     generate_sample_msi,
     interpolate_monthly,
-    sarimax_forecast,
+    safe_forecast,
     simulate_pmi,
     regression_predict,
 )
@@ -173,7 +173,7 @@ else:
 st.header("MSI Forecast")
 msi_q = generate_sample_msi()
 msi_m = interpolate_monthly(msi_q)
-forecast, ci, _ = sarimax_forecast(msi_m)
+forecast, ci, _ = safe_forecast(msi_m)
 future_idx = ci.index
 all_dates = msi_m.index.append(future_idx)
 pmi = simulate_pmi(all_dates)
