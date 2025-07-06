@@ -56,7 +56,16 @@ def parse_uploaded_files(uploaded_files: List) -> Dict[str, Dict[str, pd.DataFra
 def compute_stock_indicators(df: pd.DataFrame) -> pd.DataFrame:
     """Add moving averages, Bollinger Bands, and RSI to stock dataframe."""
     df = df.copy()
-    df["date"] = pd.to_datetime(df["date"])
+    # Normalize potential date column names
+    date_col = None
+    for c in df.columns:
+        if c.lower() in {"date", "datetime", "timestamp", "time"}:
+            date_col = c
+            break
+    if not date_col:
+        raise KeyError("date")
+
+    df["date"] = pd.to_datetime(df[date_col])
     df.sort_values("date", inplace=True)
     df["return"] = df["close"].pct_change()
     for window in [20, 50, 200]:
