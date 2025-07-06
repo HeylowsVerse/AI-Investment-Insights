@@ -11,7 +11,12 @@ This repository contains a simple Streamlit application for analyzing investment
    python -m spacy download en_core_web_sm
    ```
 
-2. Launch Streamlit:
+2. Generate JSON files using the scraping script:
+   ```bash
+   python scrape_data.py TICKER --days 60
+   ```
+
+3. Launch Streamlit:
    ```bash
    streamlit run app.py
    ```
