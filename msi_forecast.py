@@ -41,7 +41,9 @@ def regression_predict(msi: pd.Series, pmi: pd.Series, future_pmi: pd.Series):
     X = df[["pmi"]]
     y = df["msi"]
     model = LinearRegression().fit(X, y)
-    preds = model.predict(future_pmi.to_frame(name="pmi"))
+    future_df = future_pmi.to_frame()
+    future_df.columns = ["pmi"]
+    preds = model.predict(future_df)
     rmse = mean_squared_error(y, model.predict(X)) ** 0.5
     return preds, model.coef_[0], model.intercept_, rmse
 
