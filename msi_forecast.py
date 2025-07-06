@@ -102,7 +102,7 @@ def regression_predict(msi: pd.Series | pd.DataFrame,
     preds = model.predict(future_df)
 
     # Evaluate training error
-    rmse = mean_squared_error(y, model.predict(X), squared=False)
+    rmse = mean_squared_error(y, model.predict(X)) ** 0.5
     return preds, model.coef_[0], model.intercept_, rmse
 
 
