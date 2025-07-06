@@ -57,13 +57,20 @@ def simulate_pmi(dates: pd.DatetimeIndex) -> pd.Series:
 
 
 def regression_predict(msi: pd.Series, pmi: pd.Series, future_pmi: pd.Series):
+    """Predict future MSI values based on PMI."""
+    pmi = pmi.rename("pmi")
+    future_pmi = future_pmi.rename("pmi")
+
     df = pd.DataFrame({"msi": msi, "pmi": pmi}).dropna()
     X = df[["pmi"]]
     y = df["msi"]
+
     model = LinearRegression().fit(X, y)
+
     future_df = future_pmi.to_frame()
     future_df.columns = ["pmi"]
     preds = model.predict(future_df)
+
     rmse = mean_squared_error(y, model.predict(X)) ** 0.5
     return preds, model.coef_[0], model.intercept_, rmse
 
