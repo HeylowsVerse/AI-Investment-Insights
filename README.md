@@ -27,16 +27,4 @@ This repository contains a simple Streamlit application for analyzing investment
 - News and filing sentiment analysis with keyword frequency
 - Cross-company comparison charts and downloadable CSV summaries
 
-## Data Scraping
-
-Use `scrape_data.py` to download stock prices, the latest SEC filing and
-recent news for a single ticker. Example:
-
-```bash
-python scrape_data.py NVDA --days 60
-```
-
-The command saves JSON files such as `NVDA_stock.json`,
-`NVDA_filing_latest.json` and `NVDA_news_YYYYMMDD_HHMM.json` in the current
-directory.
 
