@@ -22,11 +22,6 @@ from msi_forecast import (
 )
 from scrape_data import SEMICONDUCTOR_COMPANIES
 
-# ---------- Gemma Setup ----------
-model_id = "google/gemma-2b-it"
-token = os.getenv("HF_TOKEN")
-client = InferenceClient(model=model_id, token=token)
-
 def aggregate_sentiment(df: pd.DataFrame) -> pd.DataFrame:
     if "date" in df.columns:
         return (
@@ -45,6 +40,31 @@ def explain_chart_with_gemma(prompt: str, temperature=0.7, max_tokens=300) -> st
         return response.choices[0].message.content
     except Exception as e:
         return f"❌ Error generating explanation: {e}"
+
+def summarize_stock_chart(df: pd.DataFrame, company: str) -> str:
+    last_close = df["close"].iloc[-1]
+    ma20 = df["ma20"].iloc[-1]
+    ma50 = df["ma50"].iloc[-1]
+    ma200 = df["ma200"].iloc[-1]
+    return (
+        f"{company}'s latest closing price is {last_close:.2f}. "
+        f"The 20-day MA is {ma20:.2f}, 50-day MA is {ma50:.2f}, and 200-day MA is {ma200:.2f}. "
+        "Please provide a brief analysis of the stock's short and long-term trend and market sentiment."
+    )
+
+def summarize_rsi(df: pd.DataFrame, company: str) -> str:
+    latest_rsi = df["rsi"].iloc[-1]
+    return (
+        f"The latest RSI for {company} is {latest_rsi:.1f}. "
+        "Provide a brief summary of momentum and any signs of overbought or oversold conditions."
+    )
+
+def summarize_sentiment_trends(trends: pd.DataFrame) -> str:
+    trend_summary = trends.groupby("company")["sentiment"].agg(["min", "max", "mean"]).reset_index()
+    lines = []
+    for _, row in trend_summary.iterrows():
+        lines.append(f"{row['company']} has average sentiment {row['mean']:.2f}, with a range from {row['min']:.2f} to {row['max']:.2f}.")
+    return "\n".join(lines) + "\nWhat can be inferred from these sentiment patterns?"
 
 st.set_page_config(page_title="Investment Insights", layout="wide")
 
@@ -103,6 +123,11 @@ uploaded = st.file_uploader(
     type="json",
 )
 
+# Initialize Hugging Face inference client
+model_id = "google/gemma-2b-it"
+token = os.getenv("HF_TOKEN")
+client = InferenceClient(model=model_id, token=token)
+
 if uploaded:
     news_clouds: Dict[str, Dict[str, float]] = {}
     for upl in uploaded:
@@ -137,10 +162,7 @@ if uploaded:
                     title=f"{company} Price & MAs",
                 )
                 st.plotly_chart(fig, use_container_width=True)
-                chart_prompt = (
-                    f"You are a financial analyst.\nThis chart shows the {company}'s stock price trends, including moving averages.\n"
-                    f"Explain what this indicates about the company's recent performance and investor sentiment."
-                )
+                chart_prompt = summarize_stock_chart(data["stock"], company)
                 st.markdown("**📊 Chart Analysis**")
                 st.write(explain_chart_with_gemma(chart_prompt))
 
@@ -151,10 +173,7 @@ if uploaded:
                     .properties(title="RSI")
                 )
                 st.altair_chart(rsi_chart, use_container_width=True)
-                rsi_prompt = (
-                    f"This RSI chart for {company} reflects momentum and potential overbought/oversold conditions.\n"
-                    f"Write a brief summary interpreting current signals and implications."
-                )
+                rsi_prompt = summarize_rsi(data["stock"], company)
                 st.markdown("**📈 RSI Analysis**")
                 st.write(explain_chart_with_gemma(rsi_prompt))
 
@@ -188,10 +207,7 @@ if uploaded:
             title="News Sentiment by Company",
         )
         st.plotly_chart(fig, use_container_width=True)
-        trend_prompt = (
-            "This line chart compares news sentiment over time across multiple companies.\n"
-            "Summarize the key sentiment trends and differences among the firms."
-        )
+        trend_prompt = summarize_sentiment_trends(all_trends)
         st.markdown("**🧠 Sentiment Trend Insight**")
         st.write(explain_chart_with_gemma(trend_prompt))
 
