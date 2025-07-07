@@ -22,6 +22,10 @@ from msi_forecast import (
 )
 from scrape_data import SEMICONDUCTOR_COMPANIES
 
+# ---------- Gemma Setup ----------
+model_id = "google/gemma-2b-it"
+token = os.getenv("HF_TOKEN")
+client = InferenceClient(model=model_id, token=token)
 
 def aggregate_sentiment(df: pd.DataFrame) -> pd.DataFrame:
     if "date" in df.columns:
@@ -29,7 +33,6 @@ def aggregate_sentiment(df: pd.DataFrame) -> pd.DataFrame:
             df.groupby(pd.Grouper(key="date", freq="D"))["sentiment"].mean().reset_index()
         )
     return pd.DataFrame()
-
 
 def explain_chart_with_gemma(prompt: str, temperature=0.7, max_tokens=300) -> str:
     try:
@@ -42,7 +45,6 @@ def explain_chart_with_gemma(prompt: str, temperature=0.7, max_tokens=300) -> st
         return response.choices[0].message.content
     except Exception as e:
         return f"❌ Error generating explanation: {e}"
-
 
 st.set_page_config(page_title="Investment Insights", layout="wide")
 
@@ -135,7 +137,6 @@ if uploaded:
                     title=f"{company} Price & MAs",
                 )
                 st.plotly_chart(fig, use_container_width=True)
-
                 chart_prompt = (
                     f"You are a financial analyst.\nThis chart shows the {company}'s stock price trends, including moving averages.\n"
                     f"Explain what this indicates about the company's recent performance and investor sentiment."
@@ -150,7 +151,6 @@ if uploaded:
                     .properties(title="RSI")
                 )
                 st.altair_chart(rsi_chart, use_container_width=True)
-
                 rsi_prompt = (
                     f"This RSI chart for {company} reflects momentum and potential overbought/oversold conditions.\n"
                     f"Write a brief summary interpreting current signals and implications."
@@ -188,7 +188,6 @@ if uploaded:
             title="News Sentiment by Company",
         )
         st.plotly_chart(fig, use_container_width=True)
-
         trend_prompt = (
             "This line chart compares news sentiment over time across multiple companies.\n"
             "Summarize the key sentiment trends and differences among the firms."
@@ -251,10 +250,7 @@ forecast_prompt = (
 st.markdown("**📉 Forecast Analysis**")
 st.write(explain_chart_with_gemma(forecast_prompt))
 
-# ---------- Gemma Setup ----------
-model_id = "google/gemma-2b-it"
-token = os.getenv("HF_TOKEN")
-client = InferenceClient(model=model_id, token=token)
+# ---------- MSI Forecast Analysis (via Hugging Face API) ----------
 
 latest_date = future_idx[-1].strftime("%Y-%m")
 latest_msi = float(forecast.values[-1])
