@@ -22,12 +22,27 @@ from msi_forecast import (
 )
 from scrape_data import SEMICONDUCTOR_COMPANIES
 
+
 def aggregate_sentiment(df: pd.DataFrame) -> pd.DataFrame:
     if "date" in df.columns:
         return (
             df.groupby(pd.Grouper(key="date", freq="D"))["sentiment"].mean().reset_index()
         )
     return pd.DataFrame()
+
+
+def explain_chart_with_gemma(prompt: str, temperature=0.7, max_tokens=300) -> str:
+    try:
+        messages = [{"role": "user", "content": prompt}]
+        response = client.chat_completion(
+            messages,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        return f"❌ Error generating explanation: {e}"
+
 
 st.set_page_config(page_title="Investment Insights", layout="wide")
 
@@ -120,6 +135,14 @@ if uploaded:
                     title=f"{company} Price & MAs",
                 )
                 st.plotly_chart(fig, use_container_width=True)
+
+                chart_prompt = (
+                    f"You are a financial analyst.\nThis chart shows the {company}'s stock price trends, including moving averages.\n"
+                    f"Explain what this indicates about the company's recent performance and investor sentiment."
+                )
+                st.markdown("**📊 Chart Analysis**")
+                st.write(explain_chart_with_gemma(chart_prompt))
+
                 rsi_chart = (
                     alt.Chart(data["stock"])
                     .mark_line()
@@ -127,6 +150,14 @@ if uploaded:
                     .properties(title="RSI")
                 )
                 st.altair_chart(rsi_chart, use_container_width=True)
+
+                rsi_prompt = (
+                    f"This RSI chart for {company} reflects momentum and potential overbought/oversold conditions.\n"
+                    f"Write a brief summary interpreting current signals and implications."
+                )
+                st.markdown("**📈 RSI Analysis**")
+                st.write(explain_chart_with_gemma(rsi_prompt))
+
                 csv = data["stock"].to_csv(index=False).encode("utf-8")
                 st.download_button(
                     "Download Stock Data", data=csv, file_name=f"{company}_stock.csv"
@@ -157,6 +188,13 @@ if uploaded:
             title="News Sentiment by Company",
         )
         st.plotly_chart(fig, use_container_width=True)
+
+        trend_prompt = (
+            "This line chart compares news sentiment over time across multiple companies.\n"
+            "Summarize the key sentiment trends and differences among the firms."
+        )
+        st.markdown("**🧠 Sentiment Trend Insight**")
+        st.write(explain_chart_with_gemma(trend_prompt))
 
     if summaries:
         summary_df = pd.concat(summaries, ignore_index=True)
@@ -206,8 +244,14 @@ fig.update_layout(
 st.plotly_chart(fig, use_container_width=True)
 st.caption(f"Regression slope: {slope:.3f}, intercept: {intercept:.3f}, RMSE: {rmse:.2f}")
 
-# ---------- MSI Forecast Analysis (via Hugging Face API) ----------
+forecast_prompt = (
+    f"You are a financial analyst.\nThe MSI forecast shows SARIMAX projections, confidence bands, and PMI overlay.\n"
+    f"Explain how the forecast trend and PMI alignment reflect potential industry outlook."
+)
+st.markdown("**📉 Forecast Analysis**")
+st.write(explain_chart_with_gemma(forecast_prompt))
 
+# ---------- Gemma Setup ----------
 model_id = "google/gemma-2b-it"
 token = os.getenv("HF_TOKEN")
 client = InferenceClient(model=model_id, token=token)
@@ -236,5 +280,5 @@ with st.spinner("Generating forecast commentary..."):
     except Exception as e:
         commentary = f"❌ Error generating commentary: {e}"
 
-st.subheader("\U0001F4DD Automated MSI Forecast Analysis")
+st.subheader("📝 Automated MSI Forecast Analysis")
 st.write(commentary)
